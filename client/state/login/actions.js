@@ -13,6 +13,9 @@ import {
 	LOGIN_REQUEST,
 	LOGIN_REQUEST_FAILURE,
 	LOGIN_REQUEST_SUCCESS,
+	SOCIAL_CREATE_ACCOUNT_REQUEST,
+	SOCIAL_CREATE_ACCOUNT_FAILURE,
+	SOCIAL_CREATE_ACCOUNT_SUCCESS,
 	SOCIAL_LOGIN_REQUEST,
 	SOCIAL_LOGIN_REQUEST_FAILURE,
 	SOCIAL_LOGIN_REQUEST_SUCCESS,
@@ -94,6 +97,24 @@ function getErrorFromHTTPError( httpError ) {
 
 	return { code, message, field };
 }
+
+const wpcomErrorMessages = {
+	user_exists: translate( 'Whoops! Your email on Google is already in use on WordPress.com. ' +
+		'To use your existing WordPress.com account, log in with your email address and password. ' +
+		"To create a new WordPress.com account, you'll have to switch to a different Google account." )
+};
+
+/**
+ * Transforms WPCOM error to the error object we use for login purposes
+ *
+ * @param {Object} wpcomError HTTP error
+ * @returns {{message: string, field: string, code: string}} an error message and the id of the corresponding field
+ */
+const getErrorFromWPCOMError = ( wpcomError ) => ( {
+	message: wpcomErrorMessages[ wpcomError.error ] || wpcomError.message,
+	code: wpcomError.error,
+	field: 'global',
+} );
 
 /**
  * Attempt to login a user.
@@ -179,6 +200,27 @@ export const loginUserWithTwoFactorVerificationCode = ( twoStepCode, twoFactorAu
 
 			return Promise.reject( error );
 		} );
+};
+
+export const createSocialAccount = ( service, serviceToken ) => dispatch => {
+	dispatch( { type: SOCIAL_CREATE_ACCOUNT_REQUEST } );
+
+	return new Promise( ( resolve, reject ) => {
+		wpcom.undocumented().usersSocialNew( service, serviceToken, 'login', ( wpcomError, wpcomResponse ) => {
+			if ( wpcomError ) {
+				const error = getErrorFromWPCOMError( wpcomError );
+				dispatch( { type: SOCIAL_CREATE_ACCOUNT_FAILURE, error } );
+				reject( error );
+			} else {
+				const data = {
+					username: wpcomResponse.username,
+					bearerToken: wpcomResponse.bearer_token
+				};
+				dispatch( { type: SOCIAL_CREATE_ACCOUNT_SUCCESS, data } );
+				resolve( data );
+			}
+		} );
+	} );
 };
 
 /**

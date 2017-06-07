@@ -29,6 +29,10 @@ import {
 	TWO_FACTOR_AUTHENTICATION_SEND_SMS_CODE_REQUEST_FAILURE,
 	TWO_FACTOR_AUTHENTICATION_SEND_SMS_CODE_REQUEST_SUCCESS,
 	TWO_FACTOR_AUTHENTICATION_UPDATE_NONCE,
+	SOCIAL_CREATE_ACCOUNT_REQUEST,
+	SOCIAL_CREATE_ACCOUNT_FAILURE,
+	SOCIAL_CREATE_ACCOUNT_SUCCESS,
+	USER_RECEIVE,
 } from 'state/action-types';
 
 export const isRequesting = createReducer( false, {
@@ -124,6 +128,22 @@ export const twoFactorAuthPushPoll = createReducer( { inProgress: false, success
 	[ TWO_FACTOR_AUTHENTICATION_PUSH_POLL_COMPLETED ]: state => ( { ...state, inProgress: false, success: true } ),
 } );
 
+export const socialAccount = createReducer( { isCreating: false }, {
+	[ SOCIAL_CREATE_ACCOUNT_REQUEST ]: () => ( { isCreating: true } ),
+	[ SOCIAL_CREATE_ACCOUNT_FAILURE ]: ( state, { error } ) => ( { isCreating: false, createError: error } ),
+	[ SOCIAL_CREATE_ACCOUNT_SUCCESS ]: ( state, { data: { username, bearerToken } } ) => ( {
+		isCreating: false,
+		username,
+		bearerToken
+	} ),
+	[ SOCIAL_LOGIN_REQUEST_FAILURE ]: ( state, { error } ) => ( {
+		...state,
+		requestError: error
+	} ),
+	[ USER_RECEIVE ]: state => ( { ...state, bearerToken: null, username: null } ),
+	[ LOGIN_REQUEST ]: state => ( { ...state, createError: false } ),
+} );
+
 export default combineReducers( {
 	isRequesting,
 	isRequestingTwoFactorAuth,
@@ -136,4 +156,5 @@ export default combineReducers( {
 	twoFactorAuth,
 	twoFactorAuthRequestError,
 	twoFactorAuthPushPoll,
+	socialAccount,
 } );
