@@ -13,9 +13,6 @@ import {
 	LOGIN_REQUEST,
 	LOGIN_REQUEST_FAILURE,
 	LOGIN_REQUEST_SUCCESS,
-	SOCIAL_CREATE_ACCOUNT_REQUEST,
-	SOCIAL_CREATE_ACCOUNT_FAILURE,
-	SOCIAL_CREATE_ACCOUNT_SUCCESS,
 	SOCIAL_LOGIN_REQUEST,
 	SOCIAL_LOGIN_REQUEST_FAILURE,
 	SOCIAL_LOGIN_REQUEST_SUCCESS,
@@ -202,27 +199,6 @@ export const loginUserWithTwoFactorVerificationCode = ( twoStepCode, twoFactorAu
 		} );
 };
 
-export const createSocialAccount = ( service, serviceToken ) => dispatch => {
-	dispatch( { type: SOCIAL_CREATE_ACCOUNT_REQUEST } );
-
-	return new Promise( ( resolve, reject ) => {
-		wpcom.undocumented().usersSocialNew( service, serviceToken, 'login', ( wpcomError, wpcomResponse ) => {
-			if ( wpcomError ) {
-				const error = getErrorFromWPCOMError( wpcomError );
-				dispatch( { type: SOCIAL_CREATE_ACCOUNT_FAILURE, error } );
-				reject( error );
-			} else {
-				const data = {
-					username: wpcomResponse.username,
-					bearerToken: wpcomResponse.bearer_token
-				};
-				dispatch( { type: SOCIAL_CREATE_ACCOUNT_SUCCESS, data } );
-				resolve( data );
-			}
-		} );
-	} );
-};
-
 /**
  * Attempt to login a user with an external social account.
  *
@@ -281,10 +257,14 @@ export const createSocialUser = ( service, token, flowName ) => dispatch => {
 	} );
 
 	return wpcom.undocumented().usersSocialNew( service, token, flowName ).then( wpcomResponse => {
-		dispatch( { type: SOCIAL_CREATE_ACCOUNT_REQUEST_SUCCESS } );
-		return Promise.resolve( wpcomResponse );
-	} ).catch( wpcomError => {
-		const error = { ...wpcomError, field: 'global' };
+		const data = {
+			username: wpcomResponse.username,
+			bearerToken: wpcomResponse.bearer_token
+		};
+		dispatch( { type: SOCIAL_CREATE_ACCOUNT_SUCCESS, data } );
+		return data;
+	}, wpcomError => {
+		const error = getErrorFromWPCOMError( wpcomError );
 
 		dispatch( {
 			type: SOCIAL_CREATE_ACCOUNT_REQUEST_FAILURE,

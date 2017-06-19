@@ -12,13 +12,12 @@ import { localize } from 'i18n-calypso';
 import config from 'config';
 import { getCurrentQueryArguments } from 'state/ui/selectors';
 import { infoNotice, removeNotice } from 'state/notices/actions';
-import { loginSocialUser, createSocialAccount } from 'state/login/actions';
+import { loginSocialUser, createSocialUser } from 'state/login/actions';
 import {
 	getCreatedSocialAccountUsername,
 	getCreatedSocialAccountBearerToken,
 	isSocialAccountCreating,
 } from 'state/login/selectors';
-import { infoNotice, removeNotice } from 'state/notices/actions';
 import { recordTracksEvent } from 'state/analytics/actions';
 import WpcomLoginForm from 'signup/wpcom-login-form';
 
@@ -55,7 +54,7 @@ const InfoNotice = connect(
 
 class SocialLoginForm extends Component {
 	static propTypes = {
-		createSocialAccount: PropTypes.func.isRequired,
+		createSocialUser: PropTypes.func.isRequired,
 		recordTracksEvent: PropTypes.func.isRequired,
 		redirectTo: PropTypes.string,
 		onSuccess: PropTypes.func.isRequired,
@@ -84,7 +83,7 @@ class SocialLoginForm extends Component {
 				},
 				error => {
 					if ( error.code === 'unknown_user' ) {
-						return this.props.createSocialAccount( 'google', response.Zi.id_token )
+						return this.props.createSocialUser( 'google', response.Zi.id_token, 'login' )
 							.then(
 								() => recordEvent( 'calypso_social_login_form_signup_success' ),
 								createAccountError => recordEvent(
@@ -144,7 +143,7 @@ export default connect(
 	} ),
 	{
 		loginSocialUser,
-		createSocialAccount,
+		createSocialUser,
 		recordTracksEvent,
 	}
 )( localize( SocialLoginForm ) );
