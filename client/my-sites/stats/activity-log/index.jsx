@@ -2,6 +2,7 @@
  * External dependencies
  */
 import React, { Component, PropTypes } from 'react';
+import debugFactory from 'debug';
 import { connect } from 'react-redux';
 import { localize } from 'i18n-calypso';
 import { groupBy, map, get } from 'lodash';
@@ -11,17 +12,25 @@ import { groupBy, map, get } from 'lodash';
  */
 import Main from 'components/main';
 import { getSelectedSiteId } from 'state/ui/selectors';
-import { getSiteSlug, isJetpackSite } from 'state/sites/selectors';
+import {
+	getSiteSlug,
+	getSiteTitle,
+	isJetpackSite,
+} from 'state/sites/selectors';
 import { getRewindStatusError } from 'state/selectors';
 import StatsFirstView from '../stats-first-view';
 import SidebarNavigation from 'my-sites/sidebar-navigation';
 import StatsNavigation from '../stats-navigation';
+import ActivityLogConfirmDialog from '../activity-log-confirm-dialog';
 import ActivityLogDay from '../activity-log-day';
 import ErrorBanner from '../activity-log-banner/error-banner';
 import ProgressBanner from '../activity-log-banner/progress-banner';
 import SuccessBanner from '../activity-log-banner/success-banner';
 import QueryRewindStatus from 'components/data/query-rewind-status';
 import QueryActivityLog from 'components/data/query-activity-log';
+import { rewindRestore as rewindRestoreAction } from 'state/activity-log/actions';
+
+const debug = debugFactory( 'calypso:activity-log' );
 
 class ActivityLog extends Component {
 	static propTypes = {
@@ -41,9 +50,32 @@ class ActivityLog extends Component {
 		translate: PropTypes.func.isRequired,
 	};
 
+	state = {
+		requestedRestoreTimestamp: null,
+	};
+
 	componentDidMount() {
 		window.scrollTo( 0, 0 );
 	}
+
+	handleRequestRestore = ( requestedRestoreTimestamp ) => {
+		debug( 'Restore requested for site %d to %d', this.props.siteId, requestedRestoreTimestamp );
+		this.setState( { requestedRestoreTimestamp } );
+	};
+
+	handleRestoreDialogClose = () => this.setState( { requestedRestoreTimestamp: null } );
+
+	handleRestoreDialogConfirm = () => {
+		const {
+			rewindRestore,
+			siteId,
+		} = this.props;
+
+		const { requestedRestoreTimestamp } = this.state;
+
+		this.setState( { requestedRestoreTimestamp: null } );
+		rewindRestore( siteId, requestedRestoreTimestamp );
+	};
 
 	tryFetchLogs( siteId ) {
 		const {
@@ -330,11 +362,12 @@ class ActivityLog extends Component {
 			),
 			( daily_logs, timestamp ) => (
 				<ActivityLogDay
-					key={ timestamp }
-					timestamp={ timestamp }
-					logs={ daily_logs }
-					siteId={ siteId }
 					isRewindEnabled={ true }
+					key={ timestamp }
+					logs={ daily_logs }
+					requestRestore={ this.handleRequestRestore }
+					siteId={ siteId }
+					timestamp={ timestamp }
 				/>
 			)
 		);
@@ -353,8 +386,10 @@ class ActivityLog extends Component {
 		const {
 			isJetpack,
 			siteId,
+			siteTitle,
 			slug,
 		} = this.props;
+		const { requestedRestoreTimestamp } = this.state;
 
 		return (
 			<Main wideLayout={ true }>
@@ -368,6 +403,13 @@ class ActivityLog extends Component {
 					section="activity"
 				/>
 				{ this.renderErrorMessage() || this.renderContent() }
+				<ActivityLogConfirmDialog
+					isVisible={ !! this.state.requestedRestoreTimestamp }
+					siteName={ siteTitle }
+					timestamp={ requestedRestoreTimestamp }
+					onClose={ this.handleRestoreDialogClose }
+					onConfirm={ this.handleRestoreDialogConfirm }
+				/>
 			</Main>
 		);
 	}
@@ -379,16 +421,19 @@ export default connect(
 		return {
 			isJetpack: isJetpackSite( state, siteId ),
 			siteId,
+			siteTitle: getSiteTitle( state, siteId ),
 			slug: getSiteSlug( state, siteId ),
 			rewindStatusError: getRewindStatusError( state, siteId ),
 
 			// FIXME: Testing only
-			isPressable: get( state.activityLog.rewindStatus, [ siteId, 'isPressable' ], false ),
+			isPressable: true || get( state.activityLog.rewindStatus, [ siteId, 'isPressable' ], false ),
 			logs: get( state, [
 				'activityLog',
 				'logItems',
 				siteId,
 			], [] ),
 		};
+	}, {
+		rewindRestore: rewindRestoreAction
 	}
 )( localize( ActivityLog ) );
